@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Babyphone v0.0</title>
+    <link rel="stylesheet" href="jquery.mobile-1.4.4.min.css" />
+    <script src="jquery-1.11.1.min.js"></script>
+    <script src="jquery.mobile-1.4.4.min.js"></script>
+
+    <script>
+        var tabResultAction = [];
+        var nbDeFile = 0;
+        var lastNbDeFile = 0;
+        var lastResultRecord = 0;
+        var iIsRecord = 0;
+
+        function notifyMe(message) {
+            // Let's check if the browser supports notifications
+            if (!("Notification" in window)) {
+                alert("This browser does not support desktop notification");
+            }
+
+            // Let's check if the user is okay to get some notification
+            else if (Notification.permission === "granted") {
+                // If it's okay let's create a notification
+                var notification = new Notification(message);
+            }
+
+            // Otherwise, we need to ask the user for permission
+            // Note, Chrome does not implement the permission static property
+            // So we have to check for NOT 'denied' instead of 'default'
+            else if (Notification.permission !== 'denied') {
+                Notification.requestPermission(function(permission) {
+                    // Whatever the user answers, we make sure we store the information
+                    if (!('permission' in Notification)) {
+                        Notification.permission = permission;
+                    }
+                    // If the user is okay, let's create a notification
+                    if (permission === "granted") {
+                        var notification = new Notification(message);
+                    }
+                });
+            }
+
+            // At last, if the user already denied any notification, and you 
+            // want to be respectful there is no need to bother them any more.
+        }
+
+        function actionToAPI(action) {
+            //$("#loading").html("<li>loading</li>");
+            //var xhr = new XMLHttpRequest({mozSystem: true});
+            var xhr = new XMLHttpRequest();
+            //var adresse = "192.168.2.31";
+            var adresse = "192.168.0.30";
+            //var tabResult = new Array;
+            xhr.open("GET", "http://" + adresse + "/index.php?action=" + action, false);
+            xhr.send(null);
+
+            if (xhr.status === 200) {
+                objValues = JSON.parse(xhr.responseText);
+                var i = 0;
+                for (var dummy in objValues[action]) {
+                    tabResultAction[i] = objValues[action][dummy];
+                    i++;
+                }
+                console.log(xhr.responseText);
+            }
+
+            //$("#loading").html("");
+            //alert ("-->"+tabResultAction);
+            return tabResultAction;
+        }
+
+
+        function masterClick(action, tabSortie = '') {
+            $("#loading").html("<li>loading</li>");
+            var xhr = new XMLHttpRequest({
+                mozSystem: true
+            });
+            //var adresse = "192.168.2.31";
+            var adresse = "192.168.0.30";
+            xhr.open("GET", "http://" + adresse + "/index.php?action=" + action, true);
+            //alert(action);
+            xhr.onreadystatechange = function() {
+                objValues = JSON.parse(xhr.responseText);
+                //alert(JSON.stringify(objValues, null, 4));
+                fin = "0";
+                if (xhr.readyState == 4) {
+                    result = "";
+                    i = 0;
+                    getAction = action.split('&');
+                    switch (getAction[0]) {
+                        case "listFile":
+                            i = 0;
+                            for (var dummy in objValues.listFile) {
+                                result += '<li><a href="http://' + adresse + '/rec/' + objValues.listFile[dummy] + '" target="_blank">' + objValues.listFile[dummy] + '</a><a href="#" id="bdelFile" data-role="button">effacer</a></li>';
+                                i++;
+                            }
+                            break;
+                        case "lanceBabyphone":
+                            result = '<li><a href="rtp://' + objValues.lanceBabyphone.link + '">Ecouter le stream</a></li>';
+                            result += '<li><a href="http://' + adresse + ':8080/javascript_simple.html" target="_blank">Lancer le stream video</a></li>';
+                            $("#videoStream").attr("src", 'http://' + adresse + ':8080/javascript_simple.html');
+                            $("#videoStream").css({
+                                "display": "inline",
+                                "width": "360px",
+                                "height": "310px"
+                            });
+                            break;
+                        case "delFile":
+                            masterClick("listFile");
+                        default:
+                            i = 0;
+                            if (tabSortie.length > 0) {
+                                //alert(tabSortie.length);
+                                getAction = action.split('&');
+                                for (var dummy in objValues[getAction[0]]) {
+                                    result += "<li>" + tabSortie[i] + ":" + objValues[getAction[0]][tabSortie[i]] + "</li>";
+                                    i++;
+                                }
+                            } else {
+                                result = "";
+                            }
+                            $("#videoStream").css("display", "none");
+                    }
+
+                    $("#loading").html("");
+                    $("#searchResults").html(result);
+                    $('#searchResults').listview('refresh');
+                    console.log(result);
+                    fin = "1";
+                } else {
+                    $("#loading").html("<li>loading</li>");
+                    fin = "0";
+                }
+            }
+            xhr.send();
+            //xhr.abort();
+            return fin;
+        }
+
+        function checkNbFile() {
+            //resultTestAction = actionToAPI("getNbFile");
+            tabResultAction = actionToAPI("getNbFile");
+            nbDeFile = tabResultAction.toString();
+
+            //nbDeFile = tabResultAction;
+            if ((lastNbDeFile < nbDeFile) && lastNbDeFile > 0) {
+                $("#loading").html("lastNbDeFile < nbDeFile");
+                notifyMe("Un fichier a été ajouté ! lastNbDeFile:" + lastNbDeFile + " -- nbDeFile" + nbDeFile);
+            } else if (lastNbDeFile > nbDeFile) {
+                $("#loading").html("lastNbDeFile > nbDeFile");
+                notifyMe("Un fichier a été supprimé ! lastNbDeFile:" + lastNbDeFile + " -- nbDeFile" + nbDeFile);
+            } else {
+                $("#loading").html("pareil");
+            }
+            lastNbDeFile = nbDeFile;
+            //alert(nbDeFile);        
+        }
+
+        function isRecord() {
+
+            ifIsRecord = actionToAPI("isRecord");
+            resultRecord = ifIsRecord.toString();
+            if ((lastResultRecord < resultRecord) || ((lastResultRecord < resultRecord) && iIsRecord % 5 === 0)) {
+                notifyMe("Un bruit a été detecté !");
+            }
+
+            //$("#loading").html("DETCTE : lastResultRecord --> "+lastResultRecord+" - resultRecord --> "+resultRecord);  
+            //}else if(lastResultRecord > resultRecord){
+            //notifyMe("Un bruit a été detecté !");
+            //$("#loading").html("PAS DETECTE : lastResultRecord --> "+lastResultRecord+" - resultRecord --> "+resultRecord);  
+            //}else{
+            //  $("#loading").html("pareil sound : lastResultRecord --> "+lastResultRecord+" - resultRecord --> "+resultRecord);
+            //}
+
+            lastResultRecord = resultRecord;
+            iIsRecord = iIsRecord + 1;
+        }
+
+
+        $(document).ready(function() {
+            //$(document).ready(function(){
+            /*
+            Initialisation :
+            */
+            //alert("Ready !");
+            checkNbFile();
+            isRecord();
+            setInterval(function() {
+                //code goes here that will be run every 5 seconds.
+                checkNbFile();
+                isRecord();
+            }, 5000);
+
+
+
+            //fini initialisation
+
+
+            //bouton lanceBabyphone
+
+
+
+
+            $("#lanceBabyphone").click(function() {
+                var action = "lanceBabyphone";
+                var tabSortie = ["status", "state", "linkAudio"];
+                masterClick(action, tabSortie);
+            });
+
+            $("#streamIsLance").click(function() {
+                var action = "streamIsLance";
+                var tabSortie = ["status", "state"];
+                masterClick(action, tabSortie);
+            });
+
+            $("#listFile").click(function() {
+                var action = "listFile";
+                //var tabSortie = ["status","state"];
+                //$(this).when(masterClick("stopStreaming")).done(masterClick(action));
+                //masterClick("stopStreaming");
+                //setTimeout(function(){masterClick(action);},2000);
+                masterClick(action);
+
+            });
+
+            $("#stopStreaming").click(function() {
+                var action = "stopStreaming";
+                var tabSortie = ["status", "state"];
+                masterClick(action, tabSortie);
+            });
+
+            $("#stopDetectSoundCron").click(function() {
+                var action = "stopDetectSoundCron";
+                var tabSortie = ["status", "state"];
+                masterClick(action, tabSortie);
+            });
+
+            $("#startDetectSoundCron").click(function() {
+                var action = "startDetectSoundCron";
+                var tabSortie = ["status", "state"];
+                masterClick(action, tabSortie);
+            });
+
+
+            $("#testAction").click(function() {
+                //var tabResult = [];
+                checkNbFile();
+                // actionToAPI("getNbFile", function(returnValue){
+
+                //  });  
+
+
+            });
+
+            $("#searchResults").on('click', 'li', 'bdelFile', function() {
+                //$("#searchResults").delegate('bdelFile', 'li','click',  function(){
+                filename = $(this).text();
+                var action = 'delFile&filename=' + filename;
+                //var action = "delFile";
+                //alert("yeah");
+                var tabSortie = ["status", "state", "nbFile"];
+                masterClick(action, tabSortie);
+                masterClick("listFile");
+            });
+        });
+
+
+        //alert("0");
+    </script>
+
+</head>
+
+<body>
+
+    <!-- Start of first page: #home -->
+    <div data-role="page" id="home">
+
+        <div data-role="header" data-position="fixed">
+            <h3>Babyphone</h3>
+        </div>
+        <!-- /header -->
+        <div id="loading"></div>
+
+        <div data-role="content">
+            <!--<input type="search" id="searchCriteria" value="listFile" placeholder="listFile" autofocus/>-->
+            <div>
+                <a href="#" id="listFile" data-role="button">listFile</a>
+                <a href="#" id="lanceBabyphone" data-role="button">lanceBabyphone</a>
+                <a href="#" id="stopStreaming" data-role="button">stopStreaming</a>
+                <a href="#" id="stopDetectSoundCron" data-role="button">stopDetectSoundCron</a>
+                <a href="#" id="startDetectSoundCron" data-role="button">startDetectSoundCron</a>
+                <a href="#" id="streamIsLance" data-role="button">streamIsLance</a>
+                <a href="#" id="testAction" data-role="button">testAction</a>
+                <hr />
+            </div>
+
+            <div id="linebreak">&nbsp;</div>
+            <ul data-role="listview" id="searchResults">
+
+            </ul>
+
+
+        </div>
+        <!-- /content -->
+        <iframe id="videoStream" style="display:none;"></iframe>
+    </div>
+    <!-- /page home -->
+</body>
+
+</html>

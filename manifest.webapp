@@ -1,0 +1,19 @@
+{
+  "name": "inc002",
+  "description": "ceci est un test d'app",
+  "launch_path": "/index.html",
+  "icons": {
+    "128": "image/icon.png"
+  },
+  "developer": {
+    "name": "Microinfo",
+    "url": "https://loumy.fr/"
+  },
+  "default_locate": "en",
+  "permissions": {
+    "desktop-notification": {},
+    "systemXHR": {
+      "description": "Required to make Ajax Calls over the Network"
+    }
+  }
+}

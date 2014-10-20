@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html>
+ 
+<head>
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Babyphone v0.0</title>
+<link rel="stylesheet" href="jquery.mobile-1.4.4.min.css" />
+<script src="jquery-1.11.1.min.js"></script>
+<script src="jquery.mobile-1.4.4.min.js"></script>
+
+<script>
+
+function notifyMe(message) {
+  // Let's check if the browser supports notifications
+  if (!("Notification" in window)) {
+    alert("This browser does not support desktop notification");
+  }
+
+  // Let's check if the user is okay to get some notification
+  else if (Notification.permission === "granted") {
+    // If it's okay let's create a notification
+    var notification = new Notification(message);
+  }
+
+  // Otherwise, we need to ask the user for permission
+  // Note, Chrome does not implement the permission static property
+  // So we have to check for NOT 'denied' instead of 'default'
+  else if (Notification.permission !== 'denied') {
+    Notification.requestPermission(function (permission) {
+      // Whatever the user answers, we make sure we store the information
+      if (!('permission' in Notification)) {
+        Notification.permission = permission;
+      }
+      // If the user is okay, let's create a notification
+      if (permission === "granted") {
+        var notification = new Notification(message);
+      }
+    });
+  }
+
+  // At last, if the user already denied any notification, and you 
+  // want to be respectful there is no need to bother them any more.
+}
+
+
+
+
+$(document).ready(function(){
+  // 
+  
+  //bouton lanceBabyphone
+  
+ 
+  function masterClick(action,tabSortie=""){  
+     $("#loading").html("<li>loading</li>");
+     var xhr = new XMLHttpRequest({mozSystem: true});
+     //var adresse = "192.168.2.31";
+     var adresse = "192.168.0.30";
+     xhr.open("GET", "http://"+adresse+"/index.php?action=" + action, true);
+     xhr.onreadystatechange = function() {
+       objValues = JSON.parse(xhr.responseText);      
+       //alert(JSON.stringify(objValues, null, 4));
+       fin = 0; 
+       if (xhr.readyState == 4) {
+         result = "";
+         i=0;
+         switch (action){
+           case "listFile":
+             i=0;
+             for (var dummy in objValues.listFile){
+               result += '<li><a href="http://'+adresse+'/rec/' + objValues.listFile[i] + '">' + objValues.listFile[i] + '</a></li>';
+               i++;
+             }
+           break;
+           case "lanceBabyphone":
+             result = '<li><a href="rtp://' + objValues.lanceBabyphone.link + '">Ecouter le stream</a></li>'; 
+             result += '<li><a href="http://'+adresse+':8080/javascript_simple.html" target="_blank">Lancer le stream video</a></li>';
+              $("#videoStream").attr("src",'http://'+adresse+':8080/javascript_simple.html');
+              $("#videoStream").css({"display":"inline","width":"360px","height":"310px"});
+           break;
+           default:
+             i=0;
+             if (tabSortie.length > 0){
+               for (var dummy in objValues[action]){
+                 result += "<li>"+tabSortie[i]+":"+objValues[action][tabSortie[i]]+"</li>";
+                 i++;
+               }
+             }else{
+               result="";
+             }  
+             $("#videoStream").css("display","none");
+         }
+      /*  if (action=="listFile"){
+           for (var dummy in objValues.listFile){
+             result += '<li><a href="http://192.168.0.30/rec/' + objValues.listFile[i] + '">' + objValues.listFile[i] + '</a></li>';
+             i++;
+           }
+           
+         }else{ 
+          i=0;
+           for (var dummy in objValues[action]){
+             result += "<li>"+tabSortie[i]+":"+objValues[action][tabSortie[i]]+"</li>";
+             i++;
+           }
+         }
+         */  
+           //result = "<li>Status: " + objValues[action].status + "</li>";
+           //result += "<li>State: " + objValues[action].state + "</li>";       
+          $("#loading").html("");
+          $("#searchResults").html(result);
+          $('#searchResults').listview('refresh');
+          console.log(result);
+          fin = 1;
+       }else{
+         $("#loading").html("<li>loading</li>");
+         fin = 0;
+       }
+     }
+     xhr.send();
+     
+     return fin
+  }  
+
+  $("#lanceBabyphone").click(function(){
+    var action = "lanceBabyphone";
+    var tabSortie = ["status","state","linkAudio"];
+    masterClick(action,tabSortie);
+  });
+  
+  $("#streamIsLance").click(function(){
+    var action = "streamIsLance";
+    var tabSortie = ["status","state"];
+    masterClick(action,tabSortie);
+  });
+  
+  $("#listFile").click(function(){
+    var action = "listFile";
+    //var tabSortie = ["status","state"];
+    //$(this).when(masterClick("stopStreaming")).done(masterClick(action));
+    //masterClick("stopStreaming");
+    //setTimeout(function(){masterClick(action);},2000);
+    masterClick(action);
+          
+  });
+  
+  $("#stopStreaming").click(function(){
+    var action = "stopStreaming";
+    var tabSortie = ["status","state"];
+    masterClick(action,tabSortie);
+  });
+  
+  
+  /*
+  $("#listFile").click(function(){
+  action = $("#searchCriteria").val();
+  var xhr = new XMLHttpRequest({mozSystem: true});
+  xhr.open("GET", "http://192.168.0.30/index.php?action=" + action, true);
+  xhr.onreadystatechange = function() {
+    if (xhr.readyState = 4) {
+      //obj = JSON.parse(xhr.responseText);
+      //alert(obj);
+      
+      var objValues = JSON.parse(xhr.responseText);
+      result = '';
+      i=0
+      //alert(JSON.stringify(objValues.listFile["2"], null, 4));
+      // affichage de la liste des fichiers téléchargés
+      if (action=="listFile"){
+        for (var dummy in objValues.listFile){
+          result += '<li><a href="http://192.168.0.30/rec/' + objValues.listFile[i] + '">' + objValues.listFile[i] + '</a></li>';
+          i++;
+        }
+      }      
+      //result = "<li>Status: " + obj.status + "</li>";
+      //result += "<li>State: " + obj.state + "</li>";
+      //notifyMe(objValues.listFile.1);
+    }else{
+      result = "<li>Status:Error</li>";
+    }
+    console.log(result);
+    $("#searchResults").html(result);
+    $('#searchResults').listview('refresh');
+  }
+  xhr.send();
+  });
+  */
+});
+
+ 
+ //alert("0");
+</script>
+
+</head>
+
+<body>
+ 
+<!-- Start of first page: #home -->
+<div data-role="page" id="home">
+ 
+<div data-role="header" data-position="fixed">
+<h3>Babyphone</h3>
+</div><!-- /header -->
+   <div id="loading"></div>
+   
+<div data-role="content">
+  <!--<input type="search" id="searchCriteria" value="listFile" placeholder="listFile" autofocus/>-->
+  <div>
+    <a href="#" id="listFile" data-role="button">listFile</a>
+    <a href="#" id="lanceBabyphone" data-role="button">lanceBabyphone</a>
+    <a href="#" id="stopStreaming" data-role="button">stopStreaming</a>
+    <a href="#" id="streamIsLance" data-role="button">streamIsLance</a>
+  </div>
+
+<div id="linebreak">&nbsp;</div>	
+<ul data-role="listview" id="searchResults">
+
+</ul>	
+
+
+</div><!-- /content -->
+<iframe id="videoStream" style="display:none;"></iframe>
+</div><!-- /page home -->
+</body>
+</html>
+
